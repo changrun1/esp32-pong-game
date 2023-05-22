@@ -137,9 +137,9 @@ class AIPlayer extends Player {
         // 這裡的600之後要改成真正的AI板子寬度
         /*console.log(this.board2 + 600 / 2 - 200)
         console.log(this.board2 + 600 / 2 + 200)*/
-        if (this.ballX < this.board2 + 600 / 2 - 200) {
+        if (this.ballX < this.board2 + 300 / 2 - 200) {
             return 'left';
-        } else if (this.ballX > this.board2 + 600 / 2 + 200) {
+        } else if (this.ballX > this.board2 + 300 / 2 + 200) {
             return 'right';
         } else {
             return 'do nothing';
@@ -177,7 +177,7 @@ class Game {
         this.player1BoardWidth = 600;
         this.player2BoardWidth = 600;
         
-        this.ballSpeed = 50;
+        this.ballSpeed = 5;
         // 左右是X座標，板子只能左右移動，板子是高度為100的長方形
         this.player1 = this.room[0];
         this.player2 = this.room[1];
@@ -191,13 +191,11 @@ class Game {
         if (this.room.length === 2) {
             
 
-                this.player1.refreshGameInfo(this.board1, this.board2, this.ballX, this.ballY, this.angle, this.servingSide);
-                this.player2.refreshGameInfo(this.board1, this.board2, this.ballX, this.ballY, this.angle, this.servingSide);
                 switch (this.state) {
                     case gameStates.begin:
 
 
-                        this.angle = Math.PI / 4;
+                        this.angle = 0;
 
                         this.board1 = 800;
                         this.board2 = 800;
@@ -212,7 +210,8 @@ class Game {
                         }, 3000);
                         break;
                     case gameStates.serve:
-                        this.angle = Math.PI / 4;
+                        this.ballSpeed = 5;
+                        this.angle = 0;
                         if(this.servingSide == this.player1){
                             this.ballX = this.board1;
                             this.ballY = 250;
@@ -232,7 +231,8 @@ class Game {
                         }
                         if (this.ballY < top_side + 200 && this.ballY > top_side + 100) {
                             if(this.ballX < this.board1 + (this.player1BoardWidth / 2) && this.ballX > this.board1 - (this.player1BoardWidth / 2)){
-                                this.angle = Math.PI - this.angle;
+                                this.angle = 0 - Math.PI / 2 * (this.board1 - this.ballX) / this.player1BoardWidth;
+                                this.ballSpeed += 1;
                                 this.ballY += this.ballSpeed * Math.cos(this.angle);
                             }
                         }
@@ -240,8 +240,8 @@ class Game {
                         if (this.ballY > bottom_side - 200 && this.ballY < bottom_side - 100) {
                             
                             if(this.ballX < this.board2 + (this.player2BoardWidth / 2) && this.ballX > this.board2 - (this.player2BoardWidth / 2)){
-                                this.angle = Math.PI - this.angle;
-                                
+                                this.angle = Math.PI + Math.PI / 2 * (this.board2 - this.ballX) / this.player2BoardWidth;
+                                this.ballSpeed += 1;
                                 this.ballY += this.ballSpeed * Math.cos(this.angle);
                             }
                         }
@@ -261,8 +261,10 @@ class Game {
     
 
     handlePlayerInput() {
-        
+
         if(this.state == gameStates.running || this.state == gameStates.serve){
+            this.player1.refreshGameInfo(this.board1, this.board2, this.ballX, this.ballY, this.angle, this.servingSide);
+            this.player2.refreshGameInfo(this.board1, this.board2, this.ballX, this.ballY, this.angle, this.servingSide);
             let player1Action = this.player1.getPlaayerAction();
             let player2Action = this.player2.getPlaayerAction();
 
@@ -316,10 +318,10 @@ wss.on('connection', function connection(ws) {
     let player = null;
 
     ws.on('message', function incoming(message) {
-        console.log('已接收: %s', message);
+
         if (message == 'multiplayer') {  
             let room = null;
-            console.log("aaa")
+
             for (let i = 0; i < rooms.length; i++) {
                 if (rooms[i].length === 1) {
                     room = rooms[i];
@@ -330,7 +332,7 @@ wss.on('connection', function connection(ws) {
             if (room == null) {
                 room = [];
                 rooms.push(room);
-                console.log("bbb")
+
             }
 
             player = new OnlinePlayer(ws);
@@ -338,7 +340,7 @@ wss.on('connection', function connection(ws) {
 
             if (room.length === 2) {
                 startGame(room);
-                console.log("ccc")
+
             }
 
 
@@ -376,7 +378,6 @@ wss.on('connection', function connection(ws) {
     ws.on('close', function close() {
         console.log('客戶端已斷開連接');
 
-        /* Reason for closing the connection */
         console.log('斷開連接的原因是：');
         console.log(ws._closeCode + " " + ws._closeMessage);
 
@@ -426,7 +427,7 @@ setInterval(function() {
     for (let i = 0; i < games.length; i++) {
         games[i].updateGame();
     }
-}, 100);
+}, 10);
 
 setInterval(function() {
     for (let i = 0; i < games.length; i++) {

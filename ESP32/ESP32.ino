@@ -2,7 +2,7 @@
 #include <WebServer.h>
 #include <ArduinoWebsockets.h>
 #include <MD_MAX72xx.h>
-
+#include "TetrisTheme.cpp"
 
 
 using namespace websockets;
@@ -28,13 +28,16 @@ const char *password = APPSK;
 // 按鈕按下去高電位
 // led矩陣Vcc連3.3V
 #define WiFiPin  2 // led燈
-#define DIN  23 // led矩陣
-#define CS  5 // led矩陣
-#define CLK  18 // led矩陣
-#define rightButtonPin  15 // 按鈕
-#define leftButtonPin  4 // 按鈕
-#define singleplayerPin  19 // 按鈕
-#define multiplayerPin 21 // 按鈕
+#define DIN  18 // led矩陣
+#define CS  19 // led矩陣
+#define CLK  21 // led矩陣
+#define rightButtonPin  27 // 按鈕
+#define leftButtonPin  26 // 按鈕
+#define singleplayerPin  35 // 按鈕
+#define multiplayerPin 32 // 按鈕
+#define musedashPin 33 // 按鈕
+#define exitPin 25 // 按鈕
+#define BZpin 22 // 蜂鳴器
 /*------------------------------------*/
 
 MD_MAX72XX mx = MD_MAX72XX(MD_MAX72XX::PAROLA_HW, DIN, CLK, CS,8);
@@ -69,7 +72,12 @@ bool gameStarted = false;
 
 void connectToWebSocket() {
   bool connected = client.connect(WebSocketServerIP);
-  // 預設一定連得到
+  delay(100);
+  while(!connected){
+    Serial.println("連接伺服器失敗，五秒鐘後將再試一次");
+    delay(5000);
+    connected = client.connect(WebSocketServerIP);
+  }
   Serial.println("連接到伺服器了");
   
 
@@ -111,26 +119,32 @@ void drawScreen(int ballX, int ballY, int board1, int board2){
   for(int i = -3;i <= 2; i++){
     int x = board1 / 100 + i;
     int y = 6;
-    if(x > 7){
-      x -= 8;
+    if(x < 8){
+      
       y += 32;
+    }else{
+      x -= 8;
     }
     mx.setPoint(x, y, 1);
     x = board2 / 100 + i;
     y = 25;
-    if(x > 7){
-      x -= 8;
+    if(x < 8){
+      
       y += 32;
-    }   
+    }else{
+      x -= 8;
+    }  
     mx.setPoint(x, y, 1);
   }
 
   int x = ballX / 100;
   int y = ballY / 100;
-  if(x > 7){
-    x -= 8;
-    y += 32;
-  }
+    if(x < 8){
+      
+      y += 32;
+    }else{
+      x -= 8;
+    }
   y = ((y / 8) * 8) + 7 - y % 8;
   mx.setPoint(x, y, 1);
 
@@ -159,14 +173,44 @@ void setup() {
   Serial.println("HTTP 伺服器已啟動");
 
   pinMode(WiFiPin, OUTPUT);
-  
+  pinMode(rightButtonPin, INPUT);
+  pinMode(leftButtonPin, INPUT);
+  pinMode(singleplayerPin, INPUT);
+  pinMode(multiplayerPin, INPUT);
+  pinMode(musedashPin, INPUT);
+  pinMode(exitPin, INPUT);
+  //pinMode(BZpin, OUTPUT);
+
+  //TetrisTheme::start();
 }
 
 
 
 void loop() {
   
+  
+  if(digitalRead(rightButtonPin)){
+    Serial.println("Right button pressed");
+  }
+  if(digitalRead(leftButtonPin)){
+    Serial.println("Left button pressed");
+  }
+  if(digitalRead(singleplayerPin)){
+    Serial.println("Singleplayer button pressed");
+  }
+  if(digitalRead(multiplayerPin)){
+    Serial.println("Multiplayer button pressed");
+  }
+  if(digitalRead(musedashPin)){
+    Serial.println("Musedash button pressed");
+  }
+  if(digitalRead(exitPin)){
+    Serial.println("Exit button pressed");
+  }
 
+  
+  
+  //TetrisTheme::tetrisThemePlay();
   if (WiFi.status() != WL_CONNECTED) {
     digitalWrite(WiFiPin,1);
     server.handleClient();
@@ -180,7 +224,9 @@ void loop() {
     static int state = 0;
     switch(state){
       case 0:
+        mx.clear();
         if(digitalRead(singleplayerPin)){
+          Serial.print("S");
           client.send("singleplayer");
           gameStarted = false;
           state = 1;
@@ -192,6 +238,7 @@ void loop() {
         }
         break;
       case 1:
+        mx.clear();
         if(gameStarted){
           state = 2;
           resetGmae = false;
@@ -205,6 +252,10 @@ void loop() {
         if (digitalRead(leftButtonPin)) {
           client.send("left");
         
+        }
+        if (digitalRead(exitPin)) {
+          client.send("exit");
+          resetGmae = true;
         }
         if(resetGmae){
           gameStarted = false;
