@@ -247,6 +247,11 @@ class Game {
                         }
                         if (this.ballY < top_side || this.ballY > bottom_side) {
                             this.state = gameStates.serve;
+                            if(this.servingSide == this.player1){
+                                this.servingSide == this.player2;
+                            }else{
+                                this.servingSide == this.player1;
+                            }
                         }
                         break;
                     default:
@@ -318,7 +323,7 @@ wss.on('connection', function connection(ws) {
     let player = null;
 
     ws.on('message', function incoming(message) {
-
+        console.log(message);
         if (message == 'multiplayer') {  
             let room = null;
 
@@ -328,11 +333,13 @@ wss.on('connection', function connection(ws) {
                     break;
                 }
             }
+            
 
             if (room == null) {
                 room = [];
                 rooms.push(room);
-
+            }else if(room[0] == ws){
+                return;
             }
 
             player = new OnlinePlayer(ws);
@@ -346,6 +353,7 @@ wss.on('connection', function connection(ws) {
 
             
         }
+
         if (message == 'singleplayer') {  
             
             

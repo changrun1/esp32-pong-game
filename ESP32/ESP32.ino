@@ -24,9 +24,8 @@ const char *password = APPSK;
 
 /*-------------------------------------*/
 // 按照這個接角接
-// 可以自己改
-// 按鈕按下去高電位
-// led矩陣Vcc連3.3V
+// 按鈕按下去高電位，記得接地
+// led矩陣Vcc連5V
 #define WiFiPin  2 // led燈
 #define DIN  18 // led矩陣
 #define CS  19 // led矩陣
@@ -69,6 +68,7 @@ void handleConnect() {
 
 bool resetGmae = false;
 bool gameStarted = false;
+int state = 0;
 
 void connectToWebSocket() {
   bool connected = client.connect(WebSocketServerIP);
@@ -113,7 +113,9 @@ void connectToWebSocket() {
 
 
 void drawScreen(int ballX, int ballY, int board1, int board2){
-  
+  if(state == 2){
+    return;
+  }
   mx.clear();
   
   for(int i = -3;i <= 2; i++){
@@ -221,7 +223,7 @@ void loop() {
         client.poll();
     }
     // 0是還沒選模式
-    static int state = 0;
+
     switch(state){
       case 0:
         mx.clear();
@@ -260,6 +262,7 @@ void loop() {
         if(resetGmae){
           gameStarted = false;
           state = 0;
+          connectToWebSocket();
         }
         break;
     }
