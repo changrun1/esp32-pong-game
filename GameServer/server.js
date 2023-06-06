@@ -338,8 +338,10 @@ wss.on('connection', function connection(ws) {
             if (room == null) {
                 room = [];
                 rooms.push(room);
-            }else if(room[0] == ws){
-                return;
+            }else if(room[0].getPlayerType() == "onlinePlayer"){
+                if(room[0].ws == ws){
+                  return;
+                }
             }
 
             player = new OnlinePlayer(ws);
