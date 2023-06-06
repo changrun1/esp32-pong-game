@@ -328,7 +328,7 @@ wss.on('connection', function connection(ws) {
             let room = null;
 
             for (let i = 0; i < rooms.length; i++) {
-                if (rooms[i].length === 1) {
+                if (rooms[i].length === 1 && room[0].getPlayerType() == "onlinePlayer") {
                     room = rooms[i];
                     break;
                 }
