@@ -2,6 +2,35 @@ const WebSocket = require('ws');
 
 class Player {
     constructor() {
+
+    }
+    sendGameoverMessage() {
+
+    }
+
+    sendGameStartMessage() {
+
+    }
+
+    getPlaayerAction(){
+        return "do nothing"
+    }
+    getState(){
+        return true;
+    }
+
+    refreshGameInfo() {
+
+    }
+    getPlayerType(){
+        return " ";
+    }
+
+}
+
+class BoardPlayer extends Player{
+    constructor() {
+        super();
         this.ballX = 0;  // 球的X座標
         this.ballY = 0;  // 球的Y座標
         this.angle = 0;  // 球飛行的角度
@@ -10,18 +39,11 @@ class Player {
 
     }
 
-    sendGameoverMessage() {
 
-    }
-
-    sendGameStartMessage() {
-
-    }
-    
     getPlaayerAction(ballX, ballY){
         return "do nothing"
     }
-
+    
     getServe(){
         return true;
     }
@@ -43,16 +65,14 @@ class Player {
         // 更新發球方
         this.servingSide = servingSide;
     }
-    getPlayerType(){
-        return " ";
-    }
 
 
 }
 
-class OnlinePlayer extends Player {
+class OnlinePlayer extends BoardPlayer {
     constructor(ws) {
         super();
+
         this.ws = ws;
         this.messageQueue = [];
         this.serve = false;
@@ -126,8 +146,7 @@ class OnlinePlayer extends Player {
     }
 }
 
-
-class AIPlayer extends Player {
+class AIPlayer extends BoardPlayer {
     constructor(side) {
         super();
         this.side = side;
@@ -150,6 +169,48 @@ class AIPlayer extends Player {
     }
 }
 
+class tetrisPlayer extends Player {
+    constructor(ws) {
+        super();
+        this.ws = ws
+        this.messageQueue = []
+    }
+    getPlayerType(){
+        return "tetrisPlayer";
+    }
+    drow(row, col, state){
+        this.ws.send(`tetrisInfo ${row} ${col} ${state}`);
+    }
+    OnlinePlayerInput(message){
+        this.messageQueue.push(message.toString());
+    }
+    getPlaayerAction() {
+        
+        let action = "do nothing";
+
+        if (this.messageQueue.includes('exit')) {
+            action = 'exit';
+        } else if (this.messageQueue.includes('left')) {
+            action = 'left';
+        } else if (this.messageQueue.includes('right')) {
+            action = 'right';
+        } else if (this.messageQueue.includes('down')) {
+            action = 'down';
+        } else if (this.messageQueue.includes('rotate')) {
+            action = 'rotate';
+        } else if (this.messageQueue.includes('rotateReverse')) {
+            action = 'rotateReverse';
+        } else if (this.messageQueue.includes('holdOn')) {
+            action = 'holdOn';
+        } else {
+            console.log(this.messageQueue);
+        }
+        this.messageQueue = [];
+        
+        return action;
+    }
+}
+
 const left_side = 0;
 const right_side = 1600;
 const top_side = 0;
@@ -162,6 +223,8 @@ const gameStates = {
     running: 2,
 
 };
+
+
 
 class Game {
     
@@ -176,7 +239,7 @@ class Game {
         this.board2 = 800;  // 玩家2板子的位置
         this.player1BoardWidth = 600;
         this.player2BoardWidth = 600;
-        
+        this.timers = [];
         this.ballSpeed = 5;
         // 左右是X座標，板子只能左右移動，板子是高度為100的長方形
         this.player1 = this.room[0];
@@ -185,7 +248,11 @@ class Game {
     }
 
 
-
+    stop() {
+        for (const timer of this.timers) {
+            clearInterval(timer);
+        }
+    }
     updateGame() {
         
         if (this.room.length === 2) {
@@ -207,17 +274,19 @@ class Game {
 
                         setTimeout(() => {
                             this.state = gameStates.serve;
-                        }, 3000);
+                        }, 1000);
                         break;
                     case gameStates.serve:
                         this.ballSpeed = 5;
-                        this.angle = 0;
+                        
                         if(this.servingSide == this.player1){
                             this.ballX = this.board1;
                             this.ballY = 250;
+                            this.angle = 0;
                         }else{
                             this.ballX = this.board2;
-                            this.ballY = 1350;
+                            this.ballY = 2950;
+                            this.angle = Math.PI;
                         }
                         if(this.servingSide.getServe()){
                             this.state = gameStates.running;
@@ -248,9 +317,9 @@ class Game {
                         if (this.ballY < top_side || this.ballY > bottom_side) {
                             this.state = gameStates.serve;
                             if(this.servingSide == this.player1){
-                                this.servingSide == this.player2;
+                                this.servingSide = this.player2;
                             }else{
-                                this.servingSide == this.player1;
+                                this.servingSide = this.player1;
                             }
                         }
                         break;
@@ -269,7 +338,7 @@ class Game {
 
         if(this.state == gameStates.running || this.state == gameStates.serve){
             this.player1.refreshGameInfo(this.board1, this.board2, this.ballX, this.ballY, this.angle, this.servingSide);
-            this.player2.refreshGameInfo(this.board1, this.board2, this.ballX, this.ballY, this.angle, this.servingSide);
+            this.player2.refreshGameInfo(this.board2,this.board1,  this.ballX, 3200 -  this.ballY, this.angle, this.servingSide);
             let player1Action = this.player1.getPlaayerAction();
             let player2Action = this.player2.getPlaayerAction();
 
@@ -308,6 +377,257 @@ class Game {
     }
 }
 
+const SHAPES = [
+    [[1, 1, 1, 1]],
+    [[1, 1, 0], [0, 1, 1]],
+    [[0, 1, 1], [1, 1, 0]],
+    [[1, 1], [1, 1]],
+    [[1, 0, 0], [1, 1, 1]],
+    [[0, 0, 1], [1, 1, 1]],
+    [[1, 1, 1], [0, 1, 0]]
+  ];
+
+
+
+class tetrisGame{
+    
+    constructor(room) {
+
+        this.room = room;
+        this.state = gameStates.begin;
+        this.player1 = this.room[0];
+        this.player2 = this.room[1];
+        this.ROWS = 24;
+        this.COLS = 8;
+        this.board = [];
+        this.lines = 0;
+        this.currentShape = null;
+        this.currentShapeX = 0;
+        this.currentShapeY = 0;
+        this.timer = null;
+        this.isGameOver = false;
+        this.timers = [];
+        this.init();
+    }
+    stop() {
+        for (const timer of this.timers) {
+            clearInterval(timer);
+        }
+    }
+    init() {
+        for (let row = 0; row < this.ROWS; row++) {
+            this.board[row] = [];
+            for (let col = 0; col < this.COLS; col++) {
+                this.board[row][col] = 0;
+            }
+        }
+        this.drawBoard();
+        this.newShape();
+        this.gameOver = false;
+    }
+
+    newShape() {
+        const index = Math.floor(Math.random() * SHAPES.length);
+        const shape = SHAPES[index];
+        this.currentShape = shape
+
+        this.currentShapeX = Math.floor((COLS - shape[0].length) / 2);
+        this.currentShapeY = 0;
+        if (this.isColliding()) {
+            this.gameOver();
+        }
+    }
+    
+    drawBoard() {
+        for (let row = 0; row < this.ROWS; row++) {
+            for (let col = 0; col < this.COLS; col++) {
+                
+                if(this.board[row][col] == 1 || this.currentShape[this.currentShapeY + row][this.currentShapeX + col] == 1){
+                    this.player1.draw(row, col, 1);
+                    this.player2.draw(row, col, 1);
+                }else{
+                    this.player1.draw(row, col, 0);
+                    this.player2.draw(row, col, 0);
+                }
+            }
+        }
+    }
+
+    moveShapeDown() {
+
+        this.currentShapeY++;
+        if (this.isColliding()) {
+            this.currentShapeY--;
+            this.lockShape();
+            this.newShape();
+        }
+    }
+
+    moveShapeLeft() {
+
+        this.currentShapeX--;
+        if (this.isColliding()) {
+            this.currentShapeX++;
+        }
+    }
+
+    moveShapeRight() {
+
+        this.currentShapeX++;
+        if (this.isColliding()) {
+            this.currentShapeX--;
+        }
+    }
+
+    rotateShape() {
+
+        const shape  = this.currentShape;
+        const newShape = [];
+        for (let row = 0; row < shape[0].length; row++) {
+            newShape[row] = [];
+            for (let col = 0; col < shape.length; col++) {
+                newShape[row][col] = shape[shape.length - 1 - col][row];
+            }
+        }
+        this.currentShape = newShape;
+        if (this.isColliding()) {
+            this.currentShape = shape;
+        }
+    }
+
+    rotateShapeReverse() {
+
+        const shape  = this.currentShape;
+        const newShape = [];
+        for (let row = 0; row < shape[0].length; row++) {
+            newShape[row] = [];
+            for (let col = 0; col < shape.length; col++) {
+                newShape[row][col] = shape[col][shape[0].length - 1 - row];
+            }
+        }
+        this.currentShape = newShape;
+        if (this.isColliding()) {
+            this.currentShape = shape;
+        }
+    }
+    
+    lockShape() {
+        const shape = this.currentShape;
+        for (let row = 0; row < shape.length; row++) {
+            for (let col = 0; col < shape[0].length; col++) {
+                if (shape[row][col]) {
+                    this.board[this.currentShapeY + row][this.currentShapeX + col] = 1;
+                }
+            }
+        }
+    }
+    
+    isColliding() {
+        const shape = this.currentShape;
+        for (let row = 0; row < shape.length; row++) {
+            for (let col = 0; col < shape[0].length; col++) {
+                if (shape[row][col]) {
+                    const y = this.currentShapeY + row;
+                    const x = this.currentShapeX + col;
+                    if (y < 0 || y >= this.ROWS || x < 0 || x >= this.COLS || this.board[y][x]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+
+    }
+
+    removeRows() {
+        let rowsToRemove = [];
+        for (let row = 0; row < this.ROWS; row++) {
+            let isFull = true;
+            for (let col = 0; col < this.COLS; col++) {
+                if (this.board[row][col] === 0) {
+                    isFull = false;
+                    break;
+                }
+            }
+            if (isFull) {
+                rowsToRemove.push(row);
+            }
+        }
+        if (rowsToRemove.length > 0) {
+            this.lines += rowsToRemove.length;
+            for (let i = rowsToRemove.length - 1; i >= 0; i--) {
+                this.board.splice(rowsToRemove[i], 1);
+            }
+            for (let i = 0; i < rowsToRemove.length; i++) {
+                this.board.unshift(new Array(this.COLS).fill(0));
+            }
+        }
+    }
+    
+    gameOver() {
+        this.isGameOver = true;
+    }
+
+    updateGame() {
+        this.moveShapeDown();
+        this.removeRows();
+        this.drawBoard();
+        if(this.isGameOver){
+            this.init();
+        }
+    }
+
+    handlePlayerInput() {
+
+            const player1Action = this.player1.getPlaayerAction();
+            switch (player1Action) {
+                case 'left':
+                    this.moveShapeLeft();
+                    break;
+                case 'right':
+                    this.moveShapeRight();
+                    break;
+                case 'down':
+                    this.moveShapeDown();
+                    break;
+                case 'rotate':
+                    this.rotateShape();
+                    break;
+                case 'rotateReverse':
+                    this.rotateShapeReverse();
+                    break;
+                default:
+                    break;
+            }
+        
+            const player2Action = this.player2.getPlaayerAction();
+            switch (player2Action) {
+                case 'left':
+                    this.moveShapeLeft();
+                    break;
+                case 'right':
+                    this.moveShapeRight();
+                    break;
+                case 'down':
+                    this.moveShapeDown();
+                    break;
+                case 'rotate':
+                    this.rotateShape();
+                    break;
+                case 'rotateReverse':
+                    this.rotateShapeReverse();
+                    break;
+                default:
+                    break;
+            
+           }
+           this.drawBoard();
+    }
+
+}
+
+
+
 
 
 
@@ -315,7 +635,6 @@ class Game {
 const wss = new WebSocket.Server({ port: 8000 });
 
 const rooms = [];
-const games = [];
 
 wss.on('connection', function connection(ws) {
     console.log('客戶端已連接');
@@ -324,36 +643,74 @@ wss.on('connection', function connection(ws) {
 
     ws.on('message', function incoming(message) {
         console.log(message);
-        if (message == 'multiplayer') {  
+        if (message == 'tetrisCoo') {
             let room = null;
 
             for (let i = 0; i < rooms.length; i++) {
-                if (rooms[i].length === 1 && room[0].getPlayerType() == "onlinePlayer") {
+                if (rooms[i].length === 1) {
                     room = rooms[i];
                     break;
                 }
             }
             
 
-            if (room == null) {
+            if (room == null || room[0].ws == ws || room[0].getPlayerType() != "tetrisPlayer") {
                 room = [];
                 rooms.push(room);
-            }else if(room[0].getPlayerType() == "onlinePlayer"){
-                if(room[0].ws == ws){
-                  return;
+            }
+
+            player = new tetrisPlayer(ws);
+            room.push(player);
+
+            if (room.length === 2) {
+                startTetris(room);
+            }
+        }
+        if (message == 'tetrisCom') {
+            let room = null;
+
+            for (let i = 0; i < rooms.length; i++) {
+                if (rooms[i].length === 1) {
+                    room = rooms[i];
+                    break;
                 }
+            }
+            
+
+            if (room == null || room[0].ws == ws || room[0].getPlayerType() != "tetrisPlayer") {
+                room = [];
+                rooms.push(room);
+            }
+
+            player = new tetrisPlayer(ws);
+            room.push(player);
+
+            if (room.length === 2) {
+                startTetris(room);
+            }
+        }
+        if (message == 'multiplayer') {  
+            let room = null;
+
+            for (let i = 0; i < rooms.length; i++) {
+                if (rooms[i].length === 1) {
+                    room = rooms[i];
+                    break;
+                }
+            }
+            
+
+            if (room == null || room[0].ws == ws || room[0].getPlayerType() != "onlinePlayer") {
+                room = [];
+                rooms.push(room);
             }
 
             player = new OnlinePlayer(ws);
             room.push(player);
 
             if (room.length === 2) {
-                startGame(room);
-
+                startBoardGame(room);
             }
-
-
-            
         }
 
         if (message == 'singleplayer') {  
@@ -372,7 +729,7 @@ wss.on('connection', function connection(ws) {
             
 
             if (room.length == 2) {
-                startGame(room);
+                startBoardGame(room);
                 
             }
 
@@ -394,56 +751,68 @@ wss.on('connection', function connection(ws) {
         let room = null;
 
         for (let i = 0; i < rooms.length; i++) {
-        if (rooms[i] && rooms[i].includes(player)) {
+            if (rooms[i] && rooms[i].includes(player)) {
 
-                room = rooms[i];
-                break;
+                    room = rooms[i];
+                    break;
+                }
             }
-        }
 
         if (room) {
-            const index = room.indexOf(player);
-            if (index !== -1) {
-                room.splice(index, 1);
+
+            if (room.length === 2) {
+                room[0].sendGameoverMessage();
+                room[1].sendGameoverMessage();
             }
 
-            if (room.length === 0) {
-                const index = rooms.indexOf(room);
-                if (index !== -1) {
-                    rooms.splice(index, 1);
-                }
-            }else if (room.length === 1) {
-                room[0].sendGameoverMessage();
+            const index = rooms.indexOf(room);
+            if (index !== -1) {
+                rooms.splice(index, 1);
             }
+
         }
     });
 });
 
-function startGame(room) {
+function startBoardGame(room) {
+    console.log('有一場遊戲開始了');
+    const game = new Game(room);
+    room[0].sendGameStartMessage();
+    room[1].sendGameStartMessage(); 
 
-        console.log('有一場遊戲開始了');
-        const game = new Game(room);
-        room[0].sendGameStartMessage();
-        room[1].sendGameStartMessage(); 
-        games.push(game);
-    
- 
+    updateTimer = setInterval(function() {
+        game.updateGame();
+        
+    }, 10);
 
+    playerInputTimer = setInterval(function() {
+        game.handlePlayerInput();
+        
+    }, 100);
 
-
+    game.timers.push(updateTimer);
+    game.timers.push(playerInputTimer);
 }
 
-setInterval(function() {
-    for (let i = 0; i < games.length; i++) {
-        games[i].updateGame();
-    }
-}, 10);
+function startTetris(room) {
+    console.log('有一場遊戲開始了');
+    const game = new tetrisGame(room);
+    room[0].sendGameStartMessage();
+    room[1].sendGameStartMessage(); 
 
-setInterval(function() {
-    for (let i = 0; i < games.length; i++) {
-        games[i].handlePlayerInput();
-    }
-}, 100);
+    updateTimer = setInterval(function() {
+        game.updateGame();
+        
+    }, 1000);
+
+    playerInputTimer = setInterval(function() {
+        game.handlePlayerInput();
+        
+    }, 500);
+
+    game.timers.push(updateTimer);
+    game.timers.push(playerInputTimer);
+}
 
 console.log('遊戲伺服器成功開啟');
 
