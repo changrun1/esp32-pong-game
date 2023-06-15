@@ -439,18 +439,15 @@ class tetrisGame{
     }
     
     drawBoard() {
+        let newboard = [];
         for (let row = 0; row < this.ROWS; row++) {
+            let Row = [];
             for (let col = 0; col < this.COLS; col++) {
-                
-                if(this.board[row][col] == 1){
-                    this.player1.draw(row, col, 1);
-                    this.player2.draw(row, col, 1);
-                }else{
-                    this.player1.draw(row, col, 0);
-                    this.player2.draw(row, col, 0);
-                }
+                if(board[row][col] == )
             }
+            newboard.push(Row);
         }
+        return newboard;
     }
 
     moveShapeDown() {
@@ -802,7 +799,6 @@ function startTetris(room) {
 
     updateTimer = setInterval(function() {
         game.updateGame();
-        
     }, 1000);
 
     playerInputTimer = setInterval(function() {
