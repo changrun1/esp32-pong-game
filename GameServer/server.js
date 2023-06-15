@@ -178,13 +178,13 @@ class tetrisPlayer extends Player {
     getPlayerType(){
         return "tetrisPlayer";
     }
-    drow(row, col, state){
+    draw(row, col, state){
         this.ws.send(`tetrisInfo ${row} ${col} ${state}`);
     }
     OnlinePlayerInput(message){
         this.messageQueue.push(message.toString());
     }
-    getPlaayerAction() {
+    getPlayerAction() {
         
         let action = "do nothing";
 
