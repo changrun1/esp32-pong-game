@@ -442,7 +442,7 @@ class tetrisGame{
         for (let row = 0; row < this.ROWS; row++) {
             for (let col = 0; col < this.COLS; col++) {
                 
-                if(this.board[row][col] == 1 || this.currentShape[this.currentShapeY + row][this.currentShapeX + col] == 1){
+                if(this.board[row][col] == 1){
                     this.player1.draw(row, col, 1);
                     this.player2.draw(row, col, 1);
                 }else{
