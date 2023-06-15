@@ -431,7 +431,7 @@ class tetrisGame{
         const shape = SHAPES[index];
         this.currentShape = shape
 
-        this.currentShapeX = Math.floor((COLS - shape[0].length) / 2);
+        this.currentShapeX = Math.floor((this.COLS - shape[0].length) / 2);
         this.currentShapeY = 0;
         if (this.isColliding()) {
             this.gameOver();
