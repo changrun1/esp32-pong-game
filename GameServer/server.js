@@ -178,16 +178,16 @@ class tetrisPlayer extends Player {
     getPlayerType(){
         return "tetrisPlayer";
     }
-    draw(row, col, state){
-        this.ws.send(`tetrisInfo ${row} ${col} ${state}`);
+    draw(board){
+        this.ws.send("\n" + board.map(row => row.join(' ')).join('\n'));
     }
     OnlinePlayerInput(message){
         this.messageQueue.push(message.toString());
     }
-    getPlayerAction() {
+    getPlaayerAction() {
         
         let action = "do nothing";
-
+        
         if (this.messageQueue.includes('exit')) {
             action = 'exit';
         } else if (this.messageQueue.includes('left')) {
@@ -195,6 +195,7 @@ class tetrisPlayer extends Player {
         } else if (this.messageQueue.includes('right')) {
             action = 'right';
         } else if (this.messageQueue.includes('down')) {
+            console.log("aaa")
             action = 'down';
         } else if (this.messageQueue.includes('rotate')) {
             action = 'rotate';
@@ -202,9 +203,9 @@ class tetrisPlayer extends Player {
             action = 'rotateReverse';
         } else if (this.messageQueue.includes('holdOn')) {
             action = 'holdOn';
-        } else {
+        } /*else {
             console.log(this.messageQueue);
-        }
+        }*/
         this.messageQueue = [];
         
         return action;
@@ -343,10 +344,7 @@ class Game {
             let player2Action = this.player2.getPlaayerAction();
 
             if (player1Action == "exit" || player2Action == "exit"){
-                const index = games.indexOf(this);
-                if (index !== -1) {
-                    games.splice(index, 1);
-                }
+                this.stop();
                 this.player1.sendGameoverMessage();
                 this.player2.sendGameoverMessage();
             }
@@ -421,8 +419,8 @@ class tetrisGame{
                 this.board[row][col] = 0;
             }
         }
-        this.drawBoard();
         this.newShape();
+        this.drawBoard();
         this.gameOver = false;
     }
 
@@ -434,20 +432,26 @@ class tetrisGame{
         this.currentShapeX = Math.floor((this.COLS - shape[0].length) / 2);
         this.currentShapeY = 0;
         if (this.isColliding()) {
-            this.gameOver();
+            this.isGameOver = true;
         }
     }
     
     drawBoard() {
-        let newboard = [];
-        for (let row = 0; row < this.ROWS; row++) {
-            let Row = [];
-            for (let col = 0; col < this.COLS; col++) {
-                if(board[row][col] == )
+
+        let newBoard = new Array(this.ROWS).fill().map(() => new Array(this.COLS).fill(0));
+
+        const shape = this.currentShape;
+        for (let row = 0; row < shape.length; row++) {
+            for (let col = 0; col < shape[0].length; col++) {
+                if (shape[row][col]) {
+                    newBoard[this.currentShapeY + row][this.currentShapeX + col] = 1;
+                }
             }
-            newboard.push(Row);
         }
-        return newboard;
+
+        this.player1.draw(newBoard);
+        this.player2.draw(newBoard);
+
     }
 
     moveShapeDown() {
@@ -561,9 +565,7 @@ class tetrisGame{
         }
     }
     
-    gameOver() {
-        this.isGameOver = true;
-    }
+
 
     updateGame() {
         this.moveShapeDown();
@@ -586,6 +588,7 @@ class tetrisGame{
                     break;
                 case 'down':
                     this.moveShapeDown();
+                    
                     break;
                 case 'rotate':
                     this.rotateShape();
@@ -799,6 +802,7 @@ function startTetris(room) {
 
     updateTimer = setInterval(function() {
         game.updateGame();
+        
     }, 1000);
 
     playerInputTimer = setInterval(function() {

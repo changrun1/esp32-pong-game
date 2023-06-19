@@ -164,6 +164,7 @@ class TetrisTheme {
     }
 
     static void stop() {
+      noTone(22);
       songOn = false;
     }
 

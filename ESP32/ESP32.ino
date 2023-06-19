@@ -34,7 +34,7 @@ const char *password = APPSK;
 #define leftButtonPin  26 // 按鈕
 #define singleplayerPin  35 // 按鈕
 #define multiplayerPin 32 // 按鈕
-#define musedashPin 33 // 按鈕
+#define tetrisPin 33 // 按鈕
 #define exitPin 25 // 按鈕
 #define BZpin 22 // 蜂鳴器
 /*------------------------------------*/
@@ -105,15 +105,16 @@ void connectToWebSocket() {
           int ballY = ballYStr.toInt();
           int board1 = board1Str.toInt();
           int board2 = board2Str.toInt();
-          drawScreen(ballX, ballY, board1, board2);
+          drawBoardGame(ballX, ballY, board1, board2);
       }
   });
   
 }
 
 
-void drawScreen(int ballX, int ballY, int board1, int board2){
-  if(state == 2){
+void drawBoardGame(int ballX, int ballY, int board1, int board2){
+
+  if(state != 2){
     return;
   }
   mx.clear();
@@ -179,7 +180,7 @@ void setup() {
   pinMode(leftButtonPin, INPUT);
   pinMode(singleplayerPin, INPUT);
   pinMode(multiplayerPin, INPUT);
-  pinMode(musedashPin, INPUT);
+  pinMode(tetrisPin, INPUT);
   pinMode(exitPin, INPUT);
   //pinMode(BZpin, OUTPUT);
 
@@ -191,44 +192,35 @@ void setup() {
 void loop() {
   
   
-  if(digitalRead(rightButtonPin)){
-    Serial.println("Right button pressed");
-  }
-  if(digitalRead(leftButtonPin)){
-    Serial.println("Left button pressed");
-  }
-  if(digitalRead(singleplayerPin)){
-    Serial.println("Singleplayer button pressed");
-  }
-  if(digitalRead(multiplayerPin)){
-    Serial.println("Multiplayer button pressed");
-  }
-  if(digitalRead(musedashPin)){
-    Serial.println("Musedash button pressed");
-  }
-  if(digitalRead(exitPin)){
-    Serial.println("Exit button pressed");
-  }
-
   
   
   //TetrisTheme::tetrisThemePlay();
   if (WiFi.status() != WL_CONNECTED) {
     digitalWrite(WiFiPin,1);
-    server.handleClient();
+    //server.handleClient();
+
+    WiFi.begin("myHotspot", "11920437724");
+
+    delay(100);
+    connectToWebSocket();
     digitalWrite(WiFiPin, LOW);
-  }else{
+  }
+  else {
     digitalWrite(WiFiPin,0);
     if(client.available()) {
         client.poll();
     }
+    
+    if(resetGmae){
+          gameStarted = false;
+          state = 0;
+          connectToWebSocket();
+    }
     // 0是還沒選模式
-
     switch(state){
       case 0:
         mx.clear();
         if(digitalRead(singleplayerPin)){
-          Serial.print("S");
           client.send("singleplayer");
           gameStarted = false;
           state = 1;
@@ -238,6 +230,13 @@ void loop() {
           gameStarted = false;
           state = 1;
         }
+        if(digitalRead(tetrisPin)){
+          Serial.println("aaa");
+          client.send("tetrisCom");
+          TetrisTheme::init();
+          TetrisTheme::start();
+          state = 3;
+        }
         break;
       case 1:
         mx.clear();
@@ -245,6 +244,7 @@ void loop() {
           state = 2;
           resetGmae = false;
         }
+        
         break;
       case 2:
         if (digitalRead(rightButtonPin)) {
@@ -259,10 +259,14 @@ void loop() {
           client.send("exit");
           resetGmae = true;
         }
-        if(resetGmae){
-          gameStarted = false;
-          state = 0;
-          connectToWebSocket();
+
+        break;
+      case 3:
+        
+        TetrisTheme::tetrisThemePlay();
+        if (digitalRead(exitPin)) {
+          client.send("exit");
+          resetGmae = true;
         }
         break;
     }
